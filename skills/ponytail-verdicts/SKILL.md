@@ -9,8 +9,7 @@ description: >
 ---
 
 > 本插件自有能力，不是上游移植（上游 ponytail 没有记忆层）。
-> 思路来自 [dsh-spec-forge](../../../dsh-spec-forge) 的模板库：**召回 → 干活 → 沉淀**，
-> 只是这里记的是"简化裁决"，不是"需求模板"。
+> 与 `ponytail-recall` 是同一套**召回 → 干活 → 沉淀**记忆机制，这里记"简化裁决"。
 
 Ponytail's reviews are one-shot by nature. Without a ledger, every review of the
 same repo re-proposes the same cuts that were already rejected for project-specific
@@ -69,5 +68,6 @@ non-obvious, not on every review.
 - Not the same as `ponytail-debt`: the ledger records **decisions** (what we
   refuse to cut, and why), while `ponytail-debt` harvests **deferred shortcuts**
   (`ponytail:` comments in code).
-- Not the same as spec-forge's red lines:那些约束"改代码时别碰什么"，这里是
-  "简化时别砍什么"。两个都读，各管一段。
+- Not the same as `ponytail-recall`: the ledger records **simplification decisions**,
+  while recipes record **implementation playbooks** for a type of requirement. Both
+  are project memory, read in different situations.

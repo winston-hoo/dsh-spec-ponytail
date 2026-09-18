@@ -11,9 +11,8 @@ description: >
 ---
 
 > 本插件自有能力，不是上游移植（上游 ponytail 没有需求记忆层）。
-> 思路来自 [dsh-spec-forge](../../../dsh-spec-forge) 的模板库（**召回 → 干活 → 沉淀**），
-> 但按本项目选型砍到最瘦：只留「触发 + 做法 + 禁区」三要素（做法清单），
-> 不要 spec-forge 的澄清清单与提示词模板。
+> 设计目标是**最瘦**的"做法清单"：只留「触发 + 做法 + 禁区」三要素，
+> 不要澄清清单与提示词模板。插件独立运行，不需要其它插件配合。
 
 A request that's structurally the same as one you already shipped shouldn't be
 solved from first principles again. The recipe library turns "done once" into
@@ -59,8 +58,7 @@ When a recipe is injected:
 
 ## Distill — one append when a task closes
 
-Not after every task. Add a recipe only when all hold (same gate as spec-forge's
-reuse-value question #1):
+Not after every task. Add a recipe only when all hold (reuse-value gate):
 1. Next time a request like this comes up, you'd follow the same steps → approach is reproducible.
 2. The steps outlive this one task (a one-off hack, or an environment quirk, doesn't qualify).
 
@@ -74,7 +72,6 @@ sentence, actionable.
   (what we refuse to cut and why); recipes record **implementation playbooks** for a
   *type of requirement* (how we did it + what not to touch). Both are recallable —
   read the verdicts before review/audit, recall recipes when starting a new task.
-- **Not** the same as spec-forge's template library: spec-forge is the full
-  requirement-forge (clarify + triage + distill + persist). This is deliberately a
-  fraction of that; where spec-forge manages the "requirement→spec" side, ponytail
-  manages "I already know how → just do it".
+- Recipes stay deliberately thin — only three elements (trigger / approach / red
+  lines) and no clarify checklist or prompt template, so recall is cheap and the
+  model reuses a proven method instead of rebuilding it.

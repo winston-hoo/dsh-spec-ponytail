@@ -66,8 +66,7 @@ process.cwd()/.dsh-ponytail/mode  >  PONYTAIL_DEFAULT_MODE (env)  >  config.defa
 
 ## 四、改规则集时要同步的四处
 
-规则文本是**两处存放**（压缩版 + 完整版），改一处漏一处就是「模型读到两个自相矛盾的版本」
-（spec-forge 0.4.7 的 SKILL.md 漂移事故）：
+规则文本是**两处存放**（压缩版 + 完整版），改一处漏一处就是「模型读到两个自相矛盾的版本」：
 
 | # | 位置 | 说明 |
 | --- | --- | --- |
@@ -79,38 +78,26 @@ process.cwd()/.dsh-ponytail/mode  >  PONYTAIL_DEFAULT_MODE (env)  >  config.defa
 护栏：`tests/ruleset.test.js` 守着压缩版的**结构不丢项**（七级阶梯齐全、安全底线齐全、
 `ponytail:` 标记要求还在、体量不超 2200 字符），但它守不住**措辞分叉** —— 那条只能靠人。
 
-## 五、与 spec-forge 并存
-
-两个插件互不调用、互不依赖，唯一的交互是都往系统提示里写一段。已核对的冲突点：
-
-| 冲突 | 裁决 |
-| --- | --- |
-| spec-forge「默认不加业务校验」 vs ponytail「绝不砍信任边界校验」 | 两回事：前者管**没人要的业务规则**，后者管**外部输入进系统的地方**。结论：信任边界照加，业务规则不擅自加 |
-| spec-forge 要求「改完先报告再沉淀」 vs ponytail 要求「输出最多三行」 | spec-forge 的流程性输出属于「用户明确要求的解释」，不适用三行限制 |
-| 两段常驻提示的 token 叠加 | 约 1000 token/step；用 `ponytail lite`/`off` 或调 spec-forge 配置各自收敛 |
-
-## 六、排障
+## 五、排障
 
 | 现象 | 先看 |
 | --- | --- |
-| 插件没生效 | `pnpm dsh --profile web --dump-config \| Select-String ponytail`，确认 `# == dsh-ponytail` 段在 |
+| 插件没生效 | `pnpm dsh --profile web --dump-config \| Select-String ponytail`，确认 `# == dsh-spec-ponytail` 段在 |
 | 规则集没进上下文 | `ctx.get('systemPrompt')` 是否拿到服务 → 加载日志里有「未发现 systemPrompt 服务」告警就是没拿到 |
 | 八个 Skill 不见 | `ctx.get('skills')` 是否拿到服务；日志里 `Skill x/8` 的数字 |
 | 切档没反应 | 消息是否**独立成句**；`defaultMode` 是否被 profile patch 里的 `off` 覆盖 |
 | 切档当步没生效 | 看注入正文是否含 `## The ladder`；不含就是 `renderSwitchNotice` 走错分支 |
 
-## 七、需求配方召回（做法清单）
+## 六、需求配方召回（做法清单）
 
-spec-forge 的模板库管"需求侧 + 沉淀复用"，但它带全套 clarify/triage/distill。本插件只要
-**"同类需求直接照上次做法做"那一段**，于是砍到只有「触发 / 做法 / 禁区」三要素，
-不带澄清清单与提示词模板。
+本插件的记忆机制一共两级（见第一章层级表的「④ 记忆召回」）：`verdicts` 记"简化裁决"，`recipes` 记
+**需求怎么做**。配方只留「触发 / 做法 / 禁区」三要素，**不带澄清清单与提示词模板**。
 
 - **文件**：`<会话工作目录>/.dsh-ponytail/recipes.md`（与 verdicts 同构）。按工作区、不跨项目共享。
 
 ### 匹配策略（轻量，零依赖）
 
-`lib/recipes.js` 不搬 spec-forge 的 `fingerprint.js`（CJK 切词 + 技术词表 + 加权），
-只用**邻域二元组覆盖率**：
+`lib/recipes.js` 只用**邻域二元组覆盖率**，不引入外部依赖：
 
 1. `tokenize(text)`：ASCII 词（小写）+ 每个 CJK 连续段的相邻二元组。
 2. 对每条配方的 `触发：` 行算覆盖率 = 用户命中的单元数 / 触发词单元数。

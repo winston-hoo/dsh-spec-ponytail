@@ -164,7 +164,7 @@ export function apply(ctx, config) {
   //
   // dsh 没有 slash command 面，所以切档走"用户发一条独立成句的消息"（上游 Cursor 适配器同款），
   // 由插件在请求发出前**自己**解析并生效，不依赖模型理解、也不依赖模型自觉。
-  // 四条安全设计沿用 spec-forge 已验证的范式：判定与执行同源、幂等（同一轮同一句只注入一次）、
+  // 四条安全设计：判定与执行同源、幂等（同一轮同一句只注入一次）、
   // 任何异常原样放行、按需注入（不该花的 token 一分不花）。
   if (typeof ctx.on === 'function') {
     const injected = new Set()

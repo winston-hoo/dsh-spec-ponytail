@@ -1,0 +1,7 @@
+chore: drop dsh-spec-forge references — plugin runs standalone
+
+Remove all "borrowed from / tailored around dsh-spec-forge" wording from
+README, docs/design, skill files, lib comments and CHANGELOG. The recipe/verdict
+recall features are described as the plugin's own; no behavior change.
+
+Tests: 85/85 pass.

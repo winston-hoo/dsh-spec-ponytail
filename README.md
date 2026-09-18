@@ -1,13 +1,11 @@
 # dsh-spec-ponytail · 懒惰阶梯
 
 一个 DeepSeek Harness（dsh）插件：把 [Ponytail](https://github.com/DietrichGebert/ponytail) 搬进 dsh，
-并借鉴 [dsh-spec-forge](https://github.com/winston-hoo/dsh-spec-forge) 的"做法清单召回"让它记住每个项目怎么干活。
+并加一个「需求配方召回」能力，让它记住每个项目里"这类需求上次是怎么做的"，下次同类需求直接照做。
 
 > **包名 `dsh-spec-ponytail`，运行时身份仍是 `ponytail`**：命令（`ponytail lite/full/ultra`、`ponytail recipes`）、
 > 技能名（`ponytail-review` 等）、常驻段（`ponytail:ruleset`）与数据目录（`<cwd>/.dsh-ponytail/`）全部保持不变，
 > 避免破坏已安装版本与既有文档。只有插件包/仓库名改成了 `dsh-spec-ponytail`。
-
-> **Ponytail 管的是「写多少代码」，spec-forge 管的是「问不问清楚 + 记不记得住」。** 两者互补，互不替代 —— 见 [与 spec-forge 的分工](#与-spec-forge-的分工)。
 
 它给每一轮请求装上一套**懒惰阶梯**：最好的代码是你从没写过的代码。
 
@@ -72,8 +70,7 @@ dsh 没有斜杠命令面，所以切换就是**发一条独立成句的消息**
 
 默认档位解析顺序：**持久化档位 > `PONYTAIL_DEFAULT_MODE` 环境变量 > 插件 `defaultMode` 配置 > `full`**。
 
-**切过的档会记住。** 每次切档都会把档位写进 `<dsh 启动目录>/.dsh-ponytail/mode`（一行档位名，
-与 `.dsh-spec-forge/` 同一层），所以：
+**切过的档会记住。** 每次切档都会把档位写进 `<dsh 启动目录>/.dsh-ponytail/mode`（一行档位名），所以：
 
 - **重启不丢档** —— 这也是持久化排在优先级第一的原因；
 - **全机一份（重要）**：路径取的是插件进程的 `process.cwd()`，**本机实测 = `<dsh-start-dir>`**
@@ -118,9 +115,6 @@ dsh 没有斜杠命令面，所以切换就是**发一条独立成句的消息**
 - **沉淀**：任务收敛时若"这次做法下次可照做"，用普通文件工具往 `recipes.md` 追加一条
   （沿用 `## 名称 + 触发：…` 结构）。见 `ponytail-recall` Skill。
 
-> 与 spec-forge 模板库的分工：它管"把模糊需求锻造成规格"（含澄清/分级/提炼全套）；
-> 这里只做一件事——命中既有做法清单就复用，省掉重新推导。两者数据目录各自独立，互不强耦合。
-
 ---
 
 ## 成本（`npm run token-audit` 实测）
@@ -133,8 +127,7 @@ dsh 没有斜杠命令面，所以切换就是**发一条独立成句的消息**
 | 切档注入（只在切档那一步，一次） | 2203 | ≈ 551 |
 | 报告档位注入 | 79 | ≈ 20 |
 
-**诚实边界**：526 token/step 是**每个 step** 的固定税，比 spec-forge 的 489（整段）还大一点。
-它与 spec-forge 的常驻段并存，两者合计约 1000 token/step。三点缓解：
+**诚实边界**：526 token/step 是**每个 step** 的固定税，会叠加在宿主自身已有的系统提示上。三点缓解：
 
 1. 常驻段进的是**系统提示前缀**，供应商侧通常有前缀缓存，实际计费远低于此；
 2. `off` 档下常驻段整段消失，是真正的 0；
@@ -210,28 +203,12 @@ New-Item -ItemType Junction -Path node_modules\@deepseek-ai\schemastery `
 > 沙箱内注意：`node --test` 会 spawn 子进程（管道 stdio 会被拒为 EPERM），逐文件跑即可：
 > `node tests/mode.test.js; node tests/ruleset.test.js; node tests/store.test.js; node tests/verdicts.test.js; node tests/plugin.test.js; node tests/recipes.test.js`。
 
-## 与 spec-forge 的分工
-
-| | spec-forge | dsh-spec-ponytail |
-| --- | --- | --- |
-| 管的阶段 | 需求侧 + 记忆侧 | 实现侧（+ 实现做法召回） |
-| 核心机制 | 先 `spec_recall` → 分级（implement/confirm/triage）→ 沉淀模板与禁区 | 常驻懒惰阶梯 + 档位 + 八个 Skill + `ponytail-recall` 配方召回 |
-| 产出 | 可执行规格、可复用模板库 | 更短、更少依赖、更好守的代码 |
-
-**两者并存时的一条真实冲突**：spec-forge 的保守默认表写着「默认不加业务校验」，而 ponytail
-写着「绝不砍信任边界校验」。口径区分如下：
-
-- spec-forge 那条管的是**没人要的业务规则**（需求没提「校验/唯一/必填」就别自作主张）；
-- ponytail 那条管的是**信任边界**（外部输入进系统的地方，校验是安全底线，不在可砍范围）。
-
-两条同时成立：**信任边界照加，业务规则不擅自加。**
-
 ## 已知边界
 
 1. **dsh 还是开发者预览版。** 锁定的 API 面是 `systemPrompt.section` / `skills.register` / `agent/pre-step`；升级 dsh 后失效先 `--dump-config`。
 2. **档位文件是全机一份**：路径 = 插件进程的 `process.cwd()`，本机实测为 `<dsh-start-dir>`（侧栏启动 dsh 的目录），**不是会话工作区** —— 因此跨工作区共享，同一 dsh 进程里的多个会话也共享一个档位。要真按工作区隔离，得改用 `agent.session.cwd` 并在常驻段渲染时按会话解析（多一次磁盘读或一层缓存）；没做。写入失败（目录不可写）只告警，本轮切档照常生效，只是重启后不保留。
 3. **切档只认独立成句的指令。** 夹在长句里的 `ponytail` 一律当正文，不会被吞 —— 这是刻意的取舍（宁可漏切，不可误吞需求）。
-4. **常驻段与 SKILL.md 是两处文本**，压缩版 + 完整版。改规则必须两边一起改，否则模型读到的两个版本会打架（spec-forge 0.4.7 的漂移事故就是先例）。`tests/ruleset.test.js` 守着压缩版的七级阶梯与安全底线不丢项，但守不住措辞分叉。
+4. **常驻段与 SKILL.md 是两处文本**，压缩版 + 完整版。改规则必须两边一起改，否则模型读到的两个版本会打架。`tests/ruleset.test.js` 守着压缩版的七级阶梯与安全底线不丢项，但守不住措辞分叉。
 5. **子代理继承的是常驻段**（全局作用域段对子代理一并生效），**不是**上游那种专门注入。0.2.0 已派真实子代理实测：它自己的系统提示里确实带该段，档位也对 —— 所以那个 `PONYTAIL_SUBAGENT_MATCHER` 在我们的机制下没有存在必要（阶梯第 1 级）。
 6. **`ponytail-gain` 的数字是上游基准**，不是本仓库实测；该 Skill 明确禁止把基准说成「你这个仓库省了多少」。
 7. **插件与宿主同进程同权限**：只读自己的 `skills/` 目录、不联网、不执行 shell、不读写你的项目文件。源码公开，装前可自行审查。

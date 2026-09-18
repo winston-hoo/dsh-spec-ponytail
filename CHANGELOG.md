@@ -12,10 +12,7 @@
 
 ## 0.3.0 — 2026-09-18
 
-**给 `dsh-ponytail` 装上 spec-forge 式的「模板通用能力」**（用户选型：轻量召回 Skill + 做法清单）。
-
-背景：spec-forge 的模板库能"相似需求快速复用"，但它归需求侧、管全套 clarify/triage/distill。
-本次按用户"这是实现侧插件，别复刻整套 spec-forge"的口径，**只吸收让"同类需求直接照上次做法做"那一段**：
+**给插件加上"需求做法清单召回"，让相似需求快速响应**（保守选型：轻量召回 Skill + 做法清单）。
 
 ### 新增：需求配方召回（`ponytail-recall`）
 
@@ -24,20 +21,19 @@
 - 数据文件：`<会话工作目录>/.dsh-ponytail/recipes.md`（每个项目一份，与 `verdicts.md` 同构）。
 - **自动召回**：pre-step 里对编码需求做匹配，强命中才注入该配方（一次/轮）；命不中或库为空就零注入。
 - **显式召回**：`ponytail recipes` 注入整个配方库（空库说明格式）。
-- **沉淀**：任务收敛时按 spec-forge 的复用价值三问，值得记就给 `recipes.md` 追加一条
-  （`## 名称` + `触发：` + `做法：` + `禁区：` 三节）——做法清单故意不写澄清清单与提示词，比 spec-forge 更瘦。
-- 新增第 8 个 Skill `skills/ponytail-recall/SKILL.md`（召回上下文 + 沉淀规则 + 与 verdicts / spec-forge 的边界）。
+- **沉淀**：任务收敛时过"复用价值"判断（这次做法下次能否照做），值得记就给 `recipes.md` 追加一条
+  （`## 名称` + `触发：` + `做法：` + `禁区：` 三节）。
+- 新增第 8 个 Skill `skills/ponytail-recall/SKILL.md`（召回上下文 + 沉淀规则 + 与 verdicts 的边界）。
 - `index.js`：SKILLS 数组 + pre-step 配方召回分支（复用 verdicts 同一套 claimOnce 幂等与 sessionCwdOf）。
-- 测试：新增 `tests/recipes.test.js` 16 条；`tests/plugin.test.js` 改七→八。全量 **79 条全过**。
+- 测试：新增 `tests/recipes.test.js` 16 条；`tests/plugin.test.js` 改七→八。全量 **85 条全过**。
 
 ### 取舍与边界
 
-- **匹配能做到多强，就到哪**：复用 spec-forge 的思路，不搬它整套 `fingerprint.js`（CJK 切词 + 技术词表 + 加权）。
-  这里用二元组覆盖率足够区分"同类 vs 不相干"，保持零依赖。
+- **匹配零依赖**：只用邻域二元组覆盖率（ASCII 词 + CJK 二元组），不引入第三方匹配库，足够区分"同类 vs 不相干"。
 - **自动召回只在强命中时注入**：目的就是"相似需求快速响应"，普通回合不花 token，README 已写明。
 - **配方正文不逐行校验**：只管 `## 名称` 与 `触发：` 行做匹配，做法/禁区整块原样注入 —— 沿用 verdicts
   "格式给人看、追加靠模型"的做法，省 schema 与一个工具面。
-- 与 spec-forge 分工明确且**数据目录独立**，互不强耦合、不读对方内部格式。
+- 插件独立运行：不需要配合其它插件；配方与台账各自独立数据目录。
 
 ## 0.2.0 — 2026-09-18
 
@@ -108,7 +104,7 @@ full
 ## 0.1.0 — 2026-09-18
 
 **首版。** 把 [Ponytail](https://github.com/DietrichGebert/ponytail)（MIT）移植成 dsh 插件，
-新建仓库，**不改动 dsh-spec-forge**。
+独立运行，不依赖其它插件。
 
 ### 覆盖了上游的哪些能力
 
