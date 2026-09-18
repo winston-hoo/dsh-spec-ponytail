@@ -1,0 +1,50 @@
+{
+  "name": "dsh-spec-ponytail",
+  "version": "0.3.1",
+  "description": "Ponytail for DeepSeek Harness：把 agent 变成屋里最懒的资深开发 —— 最好的代码是你从没写过的代码。七级懒惰阶梯常驻注入 + lite/full/ultra/off 档位 + 八个 Skill（含需求做法清单召回）。基于 MIT 的 Dietrickebert/ponytail 插件化改造。",
+  "type": "module",
+  "main": "index.js",
+  "author": "winston-hoo",
+  "license": "MIT",
+  "files": [
+    "index.js",
+    "lib",
+    "skills",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "token-audit": "node scripts/token-audit.js"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "ponytail",
+    "yagni",
+    "over-engineering",
+    "code-minimalism",
+    "skill"
+  ]
+}

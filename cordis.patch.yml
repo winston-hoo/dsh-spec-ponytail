@@ -1,0 +1,5 @@
+- insert:
+    - id: ponytail
+      name: dsh-spec-ponytail
+      config:
+        defaultMode: full

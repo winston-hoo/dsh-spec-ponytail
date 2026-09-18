@@ -1,0 +1,29 @@
+# NOTICE · 第三方来源与署名
+
+## Ponytail（上游）
+
+本插件的**规则集正文**（七级阶梯、Rules、Output、Intensity、When NOT to be lazy）与
+**六个 Skill 的正文**，移植自：
+
+- 项目：Ponytail — https://github.com/DietrichGebert/ponytail
+- 版权：Copyright (c) 2026 DietrichGebert
+- 许可：MIT License（全文见上游仓库 `LICENSE`）
+
+按 MIT 要求，上游版权声明与许可全文随本插件一并保留：见本目录 `LICENSE` 文件末尾的引用段，
+以及每个 `skills/*/SKILL.md` 顶部的来源标注。
+
+### 本插件相对上游改了什么
+
+| 项 | 上游 | 本插件 |
+| --- | --- | --- |
+| 规则集投递 | 每轮用宿主 hook（`UserPromptSubmit`）**重复推送**一遍 | 常驻系统提示段（`systemPrompt.section`，text 为函数，随档位动态渲染），**不重复推送** |
+| 档位切换 | `/ponytail lite\|full\|ultra\|off` 斜杠命令 + 用户级标记文件 `~/.claude/.ponytail-active` | 一条**独立成句的消息**（`ponytail ultra` / `关闭 ponytail`），插件在请求发出前解析并生效；档位落在 `process.cwd()/.dsh-ponytail/mode`（0.2.0 起持久化，重启不丢；实测本机 cwd 是 `<dsh-start-dir>`，因此是**全机一份**、跨工作区共享） |
+| 命令面 | 6 个命令（review/audit/debt/gain/help） | 6 个 dsh **Skill**（同名），按需加载 |
+| 子代理 | 专门的 subagent hook + `PONYTAIL_SUBAGENT_MATCHER` | 常驻段是全局作用域段，子代理天然继承，因此**不需要匹配器**（0.2.0 已派真实子代理实测：它自己的系统提示里确实带该段，档位也对） |
+| 状态栏 | `statusLine` 脚本 | 常驻段首行 `PONYTAIL MODE ACTIVE — level: x` |
+| 多宿主适配 | 20 个宿主的适配层 + MCP 服务 | 只做 dsh（唯一的宿主） |
+| 基准与遥测 | `benchmarks/` 全套脚本 | 未移植（`ponytail-gain` 引用上游公开数据并注明来源） |
+
+`ponytail-gain` 的记分板数字来自上游 agentic 基准
+（`benchmarks/results/2026-06-18-agentic.md`），非本仓库实测；该 Skill 明确禁止把基准数字
+说成"你这个仓库省了多少"。
