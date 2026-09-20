@@ -4,9 +4,9 @@
 
 | 层 | 挂载点 | 触发频率 | 内容 |
 | --- | --- | --- | --- |
-| ① 常驻规则集 | `systemPrompt.section({ name: 'ponytail:ruleset', order: 100, text: () => renderRuleset(state.mode) })` | **每个 step**（dsh 每 step 重新 `assemble`） | `lib/ruleset.js` 的压缩版规则集；`off` 档返回空串，被 dsh 丢弃 |
+| ① 常驻规则集 | `ctx.inject(['systemPrompt'], (c) => c.systemPrompt.section({ name: 'ponytail:ruleset', order: 100, text: () => renderRuleset(state.mode) }))`（0.4.0 起；服务就绪后注册，服务更换时重跑） | **每个 step**（dsh 每 step 重新 `assemble`） | `lib/ruleset.js` 的压缩版规则集；`off` 档返回空串，被 dsh 丢弃 |
 | ② 切档注入 | `ctx.on('agent/pre-step', handler, { global: true })` | **只在用户切档那一步** | `renderSwitchNotice()`：确认语 + **新档位的完整规则集** |
-| ③ 八个 Skill | `skills.register({ name, description, content, source, provider })` | 按需（模型加载或用户显式调用） | `skills/*/SKILL.md` 的完整正文 |
+| ③ 八个 Skill | `ctx.inject(['skills'], (c) => c.skills.register({ name, description, content, source, provider }))`（0.4.0 起） | 按需（模型加载或用户显式调用） | `skills/*/SKILL.md` 的完整正文 |
 | ④ 记忆召回（两级） | `agent/pre-step` 内分支：`form:'verdicts'`（评审回合）+ `form:'recipe'`（配方强命中） | **只在对应回合命中一次** | `<会话工作目录>/.dsh-ponytail/{verdicts,recipes}.md` 的相关段 |
 
 ### 为什么 ② 必须自带规则集
@@ -19,6 +19,23 @@
 
 常驻段已经把规则集放进上下文了，再每轮推一遍纯属重复计费 —— 上游之所以每轮推，是因为
 Claude Code 只有 `UserPromptSubmit` 一个注入口。dsh 有常驻段，这是阶梯第 4 级的直接应用。
+
+### 为什么 ① 与 ③ 必须用 `ctx.inject` 注册（0.4.0 修复）
+
+**Cordis 的插件激活是"服务可用性驱动"的**（`dsh-base` 的 bundle 补丁原话：*Row order carries no load semantics (activation is service-availability driven)*）。
+本插件的声明依赖是空的（`export const inject = []`，"两个服务都可选"），因此它会被**立即** apply ——
+而那一刻 `systemPrompt` / `skills` 往往还没挂上，一次性 `ctx.get()` 只能拿到 `undefined`，
+于是第 ①、③ 层**整层静默失效**：模型上下文里既没有常驻段，也没有八个 Skill，只剩第 ② 层
+（`ctx.on` 事件监听，不依赖服务）还在工作。症状是"不手动切档时 ponytail 像没装一样"，而且
+因为只有 `ctx.logger.warn`（CLI 不打印），用户完全看不到。
+
+`ctx.inject(deps, cb)` 的语义是"**服务就绪后执行，服务更换时重跑**"（`vendor/cordis/src/registry.ts`），
+缺服务时只保持 pending、不抛错 —— 正是"可选但期望存在"该有的语义。dsh 自己也这么写
+（`packages/mcp/mcp-resources/src/index.ts`、`packages/bundle/web-app/src/index.ts` 等 5 处）。
+
+同批改动：
+- 第 ② 层在首次 `agent/pre-step` 时校验常驻段是否已注册，未注册则告警一次（降级不再静默）；
+- 宿主没有 `ctx.inject`（极简 mock / 老宿主）时退回一次性探测并告警，行为与 0.3.2 一致。
 
 ## 二、档位模型
 
@@ -83,8 +100,8 @@ process.cwd()/.dsh-ponytail/mode  >  PONYTAIL_DEFAULT_MODE (env)  >  config.defa
 | 现象 | 先看 |
 | --- | --- |
 | 插件没生效 | `pnpm dsh --profile web --dump-config \| Select-String ponytail`，确认 `# == dsh-spec-ponytail` 段在 |
-| 规则集没进上下文 | `ctx.get('systemPrompt')` 是否拿到服务 → 加载日志里有「未发现 systemPrompt 服务」告警就是没拿到 |
-| 八个 Skill 不见 | `ctx.get('skills')` 是否拿到服务；日志里 `Skill x/8` 的数字 |
+| 规则集没进上下文 | 跑一轮后看会话日志的 `system/message` 事件里有没有 `PONYTAIL MODE ACTIVE`；0.4.0 起插件在首次 `agent/pre-step` 会告警「systemPrompt 至今未就绪」 |
+| 八个 Skill 不见 | 会话里的 `<available_skills>` 目录应含 `ponytail*`；日志有 `[ponytail] Skill 已注册 8/8` |
 | 切档没反应 | 消息是否**独立成句**；`defaultMode` 是否被 profile patch 里的 `off` 覆盖 |
 | 切档当步没生效 | 看注入正文是否含 `## The ladder`；不含就是 `renderSwitchNotice` 走错分支 |
 

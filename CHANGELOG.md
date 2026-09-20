@@ -1,5 +1,36 @@
 # 变更记录
 
+## 0.4.0 — 2026-09-20
+
+**修复：第 ① 层（常驻规则集）与第 ③ 层（八个 Skill）在真实运行中整层没有生效。**
+
+排查来自一份真实会话（992 事件、turn 3 有 65 个 step）：模型上下文里**从未出现**常驻段，
+`<available_skills>` 里**从未出现** `ponytail*`；而同一份会话里第 ② 层注入是好的（`ponytail full`
+之后 2253 字符规则集照常注入）。也就是说：不手动切档时，插件对模型完全没有影响。
+
+根因：**Cordis 的插件激活是"服务可用性驱动"的**（`dsh-base` bundle 补丁原话）。本插件声明依赖为空
+（`export const inject = []`，两个服务都"可选"），因此会被**立即** apply；那一刻 `systemPrompt` /
+`skills` 还没挂上，一次性 `ctx.get()` 只能拿到 `undefined` → 走 else 分支，只写一行
+`ctx.logger.warn`（CLI 不打印）→ **静默降级**。
+
+修复：
+
+- ① 与 ③ 改用 `ctx.inject(['systemPrompt'|'skills'], (inner) => …)`：**服务就绪后注册、服务更换时重跑**，
+  缺服务时只保持 pending 不报错（`vendor/cordis/src/registry.ts` 的语义；dsh 自己在 5 处这么写，
+  如 `packages/mcp/mcp-resources/src/index.ts`）。
+- 第 ② 层在首次 `agent/pre-step` 校验常驻段是否已注册，未注册则**告警一次**（降级可见，不再静默）。
+- 宿主没有 `ctx.inject`（极简 mock / 老宿主）时退回一次性探测 + 告警，行为与 0.3.2 一致。
+- `export const inject = []` 保持不变：仍是"没有硬依赖"，只是改成"服务出现时再注册"。
+
+验证：
+
+- 端到端：lib 模式启动 web profile，`ctx.systemPrompt.assemble({})` 从 **6 段 → 8 段**，
+  出现 `ponytail:ruleset` 且正文含 `PONYTAIL MODE ACTIVE`（修复前该段完全不存在）。
+- 单测 88 条全过（新增 4 条：服务稍后挂载时补注册、服务始终缺席时首次 pre-step 告警一次、
+  无 `ctx.inject` 宿主的退回路径）。
+- 测试 mocks 的 `inject` 支持"同步就绪"与"延迟就绪"两种时序 —— 0.3.2 的 mock 只模拟了前者，
+  正是这一点让缺陷逃过了全部单测。
+
 ## 0.3.2 — 2026-09-20
 
 **给规则集加两条"永不偷懒"护栏**（钉死一次真实事故的教训：开票催办被实现成"丢 remark + 点击即发"）。

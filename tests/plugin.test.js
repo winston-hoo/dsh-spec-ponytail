@@ -33,39 +33,66 @@ function persisted() {
   }
 }
 
-/** 假 ctx：只实现插件真正用到的那几件事（get / on / logger）。 */
-function boot(config = {}) {
+/** 假 ctx：只实现插件真正用到的那几件事（get / inject / on / logger）。 */
+function boot(config = {}, { defer = false } = {}) {
   const sections = []
   const skills = []
   const handlers = new Map()
   const warnings = []
+  const pending = []
+  const serviceOf = (name) => {
+    if (name === 'systemPrompt') {
+      return {
+        section: (section) => {
+          sections.push(section)
+          return () => {}
+        },
+      }
+    }
+    if (name === 'skills') {
+      return {
+        register: (skill) => {
+          skills.push(skill)
+          return () => {}
+        },
+      }
+    }
+    return undefined
+  }
   const ctx = {
     logger: { info() {}, debug() {}, warn: (message) => warnings.push(String(message)) },
-    get(service) {
-      if (service === 'systemPrompt') {
-        return {
-          section: (section) => {
-            sections.push(section)
-            return () => {}
-          },
-        }
+    get(name) {
+      return serviceOf(name)
+    },
+    /**
+     * defer=false 模拟"服务已就绪"（0.3.2 的测试假设）；
+     * defer=true 模拟真实 Cordis 时序——依赖为空 ⇒ 插件先被 apply，服务稍后才挂。
+     */
+    inject(deps, callback) {
+      const run = () => {
+        const inner = { ...ctx }
+        for (const dep of deps) inner[dep] = serviceOf(dep)
+        callback(inner)
       }
-      if (service === 'skills') {
-        return {
-          register: (skill) => {
-            skills.push(skill)
-            return () => {}
-          },
-        }
-      }
-      return undefined
+      if (defer) pending.push(run)
+      else run()
+      return Promise.resolve()
     },
     on(event, handler, options) {
       handlers.set(event, [...(handlers.get(event) ?? []), { handler, options }])
     },
   }
   apply(ctx, Config(config))
-  return { sections, skills, handlers, warnings }
+  return {
+    sections,
+    skills,
+    handlers,
+    warnings,
+    /** 模拟"服务随后挂载"：把 defer 期间挂起的注册回调跑掉。 */
+    connect() {
+      for (const run of pending.splice(0)) run()
+    },
+  }
 }
 
 function drive(booted, payload, entering = []) {
@@ -256,6 +283,46 @@ test('降级：缺 systemPrompt / skills 服务时不抛错，只告警', () => 
   }
   assert.doesNotThrow(() => apply(ctx, Config({})))
   assert.equal(warnings.length, 2, '两个可选服务各告警一次')
+})
+
+// ---------- 服务就绪时序（0.4.0 修复：常驻段/ Skill 曾整层静默失效） ----------
+
+test('时序：服务稍后才挂，inject 回调仍完成注册（回归：一次性 ctx.get 会漏注册）', () => {
+  const booted = boot({}, { defer: true })
+  assert.equal(booted.sections.length, 0, 'apply 时刻服务还没挂上，不该假定已就绪')
+  assert.equal(booted.skills.length, 0)
+
+  booted.connect()
+
+  assert.equal(booted.sections.length, 1, '常驻段必须补注册')
+  assert.ok(booted.sections[0].text().includes('level: full'))
+  assert.equal(booted.sections[0].name, SECTION_NAME)
+  assert.equal(booted.skills.length, 8, '八个 Skill 必须补注册')
+})
+
+test('时序：宿主支持 inject 但服务始终缺席 → 首次 pre-step 告警一次，不静默', async () => {
+  const booted = boot({}, { defer: true })
+  assert.equal(booted.warnings.length, 0, 'apply 时刻服务可能稍后才挂，不该立刻报错')
+
+  await drive(booted, withText('ponytail full'))
+  await drive(booted, withText('再来一句', 2))
+
+  const hits = booted.warnings.filter((w) => w.includes('至今未就绪'))
+  assert.equal(hits.length, 1, '降级要可见，但只告警一次')
+  assert.equal(booted.sections.length, 0, '缺服务时确实没有常驻段')
+})
+
+test('时序：无 ctx.inject 的极简宿主退回一次性探测（保持 0.3.2 行为）', () => {
+  const sections = []
+  const ctx = {
+    logger: { info() {}, debug() {}, warn() {} },
+    get: (name) => (name === 'systemPrompt'
+      ? { section: (section) => { sections.push(section); return () => {} } }
+      : undefined),
+    on() {},
+  }
+  apply(ctx, Config({}))
+  assert.equal(sections.length, 1, '能同步拿到服务时就地注册')
 })
 
 // ---------- 档位持久化（0.2.0） ----------

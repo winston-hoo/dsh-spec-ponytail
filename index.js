@@ -149,16 +149,26 @@ export function apply(ctx, config) {
   //
   // text 传函数而不是字符串：dsh 每个 step 都重新 assemble 系统提示，
   // 于是档位一变，下一 step 的常驻段就跟着变，不需要重发规则集。
-  const systemPrompt = ctx.get('systemPrompt')
-  if (systemPrompt?.section) {
+  //
+  // ⚠️ 必须用 ctx.inject 等待服务，不能只用一次性 ctx.get：Cordis 的激活是
+  // **服务可用性驱动**的（dsh-base 的 bundle 补丁原话），本插件的声明依赖为空
+  // （`export const inject = []`），因此会在 systemPrompt / skills 挂载之前就被 apply，
+  // 此刻 ctx.get() 返回 undefined，第 1、3 层就会静默失效——只剩第 2 层（事件监听）在工作。
+  // ctx.inject 的语义是"服务就绪后执行，服务变化时重跑"，缺服务时保持 pending 且不报错，
+  // 正是"可选但期望存在"想要的语义。
+  //
+  // 注册结果记在 live 上：切档注入用它判断常驻段是否真的生效，必要时告警（见第 2 层）。
+  const live = { section: false, skills: 0, warnedSection: false }
+
+  whenServiceAvailable(ctx, 'systemPrompt', (_promptCtx, systemPrompt) => {
+    if (!systemPrompt?.section) return
     systemPrompt.section({
       name: SECTION_NAME,
       order: SECTION_ORDER,
       text: () => renderRuleset(state.mode),
     })
-  } else {
-    ctx.logger?.warn?.('[ponytail] 未发现 systemPrompt 服务，规则集不注入（Skill 与切档仍可用）')
-  }
+    live.section = true
+  })
 
   // ---------- 第 2 层：pre-step 注入（切档 + 台账召回） ----------
   //
@@ -170,6 +180,14 @@ export function apply(ctx, config) {
     const injected = new Set()
     const preStep = async (payload, next) => {
       const decision = await next()
+      // 常驻段至今没注册（服务始终未挂上）→ 告警一次。
+      // 没有这一条，第 1 层失效就是"静默降级"：日志不打印、用户只看到"模型不按 ponytail 干活"。
+      if (!live.section && !live.warnedSection) {
+        live.warnedSection = true
+        ctx.logger?.warn?.(
+          '[ponytail] systemPrompt 至今未就绪：常驻规则集未注入（切档注入与 Skill 不受影响）'
+        )
+      }
       try {
         if (!decision || decision.kind === 'reject') return decision
         payload?.signal?.throwIfAborted?.()
@@ -295,9 +313,8 @@ export function apply(ctx, config) {
   }
 
   // ---------- 第 3 层：八个 Skill ----------
-  const skills = ctx.get('skills')
-  let registered = 0
-  if (skills?.register) {
+  whenServiceAvailable(ctx, 'skills', (_skillCtx, skills) => {
+    if (!skills?.register) return
     for (const skill of SKILLS) {
       try {
         const content = readFileSync(join(HERE, 'skills', skill.dir, 'SKILL.md'), 'utf8')
@@ -308,19 +325,43 @@ export function apply(ctx, config) {
           source: 'runtime',
           provider: PLUGIN_ID,
         })
-        registered += 1
+        live.skills += 1
       } catch (err) {
         ctx.logger?.warn?.(`[ponytail] Skill ${skill.dir} 注册失败，其余功能不受影响: ${err.message}`)
       }
     }
-  } else {
-    ctx.logger?.warn?.('[ponytail] 未发现 skills 服务，八个 Skill 不可用（规则集与切档仍可用）')
-  }
+    ctx.logger?.info?.(`[ponytail] Skill 已注册 ${live.skills}/${SKILLS.length}`)
+  })
 
   ctx.logger?.info?.(
     `[ponytail] 已加载，档位 ${state.mode}（${persisted ? '来自持久化' : '来自配置/环境'}），` +
-      `档位文件 ${modePath(root)}，Skill ${registered}/${SKILLS.length}`
+      `档位文件 ${modePath(root)}，常驻段与 Skill 将在服务就绪后注册`
   )
+}
+
+/**
+ * 等某个可选服务就绪后再执行注册。
+ *
+ * Cordis 的 `ctx.inject(deps, cb)` = "服务可用时执行、服务更换时重跑"（子 fiber），
+ * 缺服务时只是保持 pending，不会让插件报错——这就是本插件"服务可选"的实现方式。
+ * 宿主若没有 ctx.inject（极简 mock / 老宿主），退回一次性探测：此时"服务稍后才挂"的
+ * 宿主会失去延后注册能力，因此照旧告警，行为与 0.3.2 一致。
+ *
+ * @param ctx 插件上下文
+ * @param service 服务名（systemPrompt / skills）
+ * @param callback 拿到服务后执行注册，参数为 (innerCtx, serviceInstance)
+ */
+function whenServiceAvailable(ctx, service, callback) {
+  if (typeof ctx.inject === 'function') {
+    ctx.inject([service], (inner) => callback(inner, inner[service]))
+    return
+  }
+  const now = ctx.get?.(service)
+  if (now) {
+    callback(ctx, now)
+    return
+  }
+  ctx.logger?.warn?.(`[ponytail] 未发现 ${service} 服务，且宿主不支持 ctx.inject，无法延后注册`)
 }
 
 // ---------- 辅助函数 ----------
