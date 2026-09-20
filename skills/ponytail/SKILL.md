@@ -80,9 +80,9 @@ Pattern: `[code] → skipped: [X], add when [Y].`
 
 | Level | What change |
 |-------|------------|
-| **lite** | Build what's asked, but name the lazier alternative in one line. User picks. |
-| **full** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |
-| **ultra** | YAGNI extremist. Deletion before addition. Ship the one-liner and challenge the rest of the requirement in the same breath. |
+| **lite** | Build what's asked; name the lazier alternative in one line. User picks. |
+| **full** | Enforced ladder — stdlib and native first; shortest diff, shortest explanation. Default. |
+| **ultra** | YAGNI extremist — deletion first; ship the one-liner, challenge the rest. |
 
 Example: "Add a cache for these API responses."
 - lite: "Done, cache added. FYI: `functools.lru_cache` covers this in one line if you'd rather not own a cache class."
@@ -120,6 +120,17 @@ solution, never the reading. Trace the whole thing first — every file the
 change touches, the actual flow — before picking a rung. Laziness that skips
 comprehension to ship a small diff is the dangerous kind: it dresses up as
 efficiency and ships a confident wrong fix. Read fully, then be lazy.
+
+**Optional ≠ droppable.** An API field the docs mark optional is still passed
+whenever this flow actually uses it — a `remark`/`reason` param is not decoration
+because the schema allows an empty value. Cutting the interface's only business
+param to save a line is a functional regression dressed up as laziness.
+
+**Irreversible & third-party writes get confirmation.** Any write you can't undo,
+or that sends a notification / side effect to a third party (notify, void,
+reverse, reopen, money), is confirmed in the UI with a space for a reason — never
+called straight from a click. "Can I undo it? Does it reach someone else?" — yes
+to either means confirm first. This is the floor, not over-engineering.
 
 Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not
