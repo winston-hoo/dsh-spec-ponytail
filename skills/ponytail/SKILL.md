@@ -103,8 +103,8 @@ sees it, so it always takes effect:
 The default level comes from `PONYTAIL_DEFAULT_MODE` (env) or the plugin's
 `defaultMode` config; a level you switched to is **remembered in
 `<dsh-start-dir>/.dsh-ponytail/mode`** and outranks both, so it survives a restart.
-That file is machine-wide (the plugin uses its own `process.cwd()`, measured here
-as `<dsh-start-dir>`), **not per project** — see `ponytail-help` for the details.
+That file is machine-wide (the plugin uses its own `process.cwd()`, i.e. the
+directory dsh was started from), **not per project** — see `ponytail-help` for the details.
 The active level is printed at the top of the resident ruleset, so you can always
 read it back from your own context.
 
@@ -131,6 +131,24 @@ or that sends a notification / side effect to a third party (notify, void,
 reverse, reopen, money), is confirmed in the UI with a space for a reason — never
 called straight from a click. "Can I undo it? Does it reach someone else?" — yes
 to either means confirm first. This is the floor, not over-engineering.
+
+**Visible means rendered, not "the branch exists".** Anything the user was asked
+to *see* — a count, a badge, a read/unread mark, a status colour — is not done
+because the code path runs. Verify the pixels, not the branch. Two real failures
+this guards against: a `::before` dot with `flex:none` on a parent that is not a
+flex container (the pseudo-element becomes a block and renders as a full-width
+band, never the dot); and read/unread conveyed only by `#fff` vs `#fffdf8` — a
+difference no one can see. If you cannot tell the two states apart at a glance,
+the state is not shown. Say "done" only after looking at the rendered result.
+
+**A named list or screen is not a request for its bare skeleton.** Unread/read
+state, counts, and empty and error states come with the list unless the user says
+otherwise — "build a message list" is not "build a list of rows". Shipping the
+skeleton and calling the feature finished is the exact failure this guards.
+Corollary: **state that must outlive a refresh is part of the feature.** A badge
+or count that vanishes on navigation, pull-down refresh, or a transient fetch
+failure is a bug, not a tradeoff — and never write a failed request back as zero,
+because that turns a momentary blip into a permanent, invisible wrong answer.
 
 Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not

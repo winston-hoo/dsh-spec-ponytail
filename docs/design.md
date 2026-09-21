@@ -48,7 +48,7 @@ process.cwd()/.dsh-ponytail/mode  >  PONYTAIL_DEFAULT_MODE (env)  >  config.defa
 ```
 
 - **落盘在 `process.cwd()`**：只存一行档位名 —— **全机一份，跨工作区共享**。
-  实测本机 `process.cwd()` = `<dsh-start-dir>`，即**侧栏启动 dsh 的目录**，
+  实测 `process.cwd()` 就是**启动 dsh 的那个目录**，
   不是会话工作区。（0.2.0 上线当天按"工作区级"写的文档是错的，此处更正。）
   选 `process.cwd()` 而不是 `agent.session.cwd` 的原因很实在：`apply()` 与常驻段渲染
   两处都拿不到 session，只有 cwd 是两边都一致的值。
@@ -93,7 +93,11 @@ process.cwd()/.dsh-ponytail/mode  >  PONYTAIL_DEFAULT_MODE (env)  >  config.defa
 | 4 | `README.md` + `skills/ponytail-help/SKILL.md` | 用户可见的档位说明与切换方式 |
 
 护栏：`tests/ruleset.test.js` 守着压缩版的**结构不丢项**（七级阶梯齐全、安全底线齐全、
-`ponytail:` 标记要求还在、体量不超 2200 字符），但它守不住**措辞分叉** —— 那条只能靠人。
+`ponytail:` 标记要求还在、交付自检三条判据在、体量不超 2700 字符），但它守不住**措辞分叉** —— 那条只能靠人。
+
+> 0.5.0 起体量上限由 2200 提到 2700：`## Never lazy about` 新增两条「交付自检」护栏（可见性验证 /
+> 具名列表非裸骨架 + 状态跨刷新存活，含"失败不得回写为 0"）约 410 字符。上限与
+> `scripts/token-audit.js` 的 `LIMIT` **同源**，改一处必须改另一处。
 
 ## 五、排障
 

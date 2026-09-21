@@ -1,10 +1,14 @@
 # dsh-spec-ponytail 本地开发补丁
-# 用法（在 deepseek-harness 目录下）：
-#   node apps/cli/lib/bin.js --profile headless --patch D:/<plugin-src>/dsh-spec-ponytail/dev/ponytail.patch.yml "你的任务"
-# 注意：Windows 的 ESM loader 要求 file:// URL，name 必须写成 file:///D:/… 形式，
+#
+# 用法（在 dsh 源码目录下执行）：
+#   node apps/cli/lib/bin.js --profile headless \
+#     --patch <本插件源码目录>/dev/ponytail.patch.yml "你的任务"
+#
+# 注意：Windows 的 ESM loader 要求 file:// URL，下面的 name 必须写成
+#       file:///<绝对路径>/index.js 形式（三斜杠 + 正斜杠），
 #       裸盘符路径（D:/…）会被解析成协议 d: 而加载失败。
 - insert:
     - id: ponytail
-      name: file:///D:/<plugin-src>/dsh-spec-ponytail/index.js
+      name: file:///<本插件源码目录>/index.js
       config:
         defaultMode: full

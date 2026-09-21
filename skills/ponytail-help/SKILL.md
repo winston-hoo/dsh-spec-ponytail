@@ -60,9 +60,8 @@ never as a switch.
 ## Where the level lives
 
 A switch is **written to disk** at `<dsh-start-dir>/.dsh-ponytail/mode` — the
-plugin resolves that as its own `process.cwd()`, measured on this machine as
-`<dsh-start-dir>` (where the sidebar launches DSH), **not the
-session workspace**. So:
+plugin resolves that as its own `process.cwd()`, i.e. the directory dsh was
+launched from, **not the session workspace**. So:
 
 - the level **survives a restart** — that is the point of the file;
 - it is **machine-wide, not per project**: switching in one project changes the

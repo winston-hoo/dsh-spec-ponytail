@@ -40,7 +40,8 @@ console.log(
 console.log('  切档注入只在用户真的切档那一步发生一次，其余轮次为 0。\n')
 
 // 回归护栏：常驻段体量翻倍时这里要报错（与 tests/ruleset.test.js 的上限同源）
-const LIMIT = 2200
+// 0.5.0：2200 → 2700，容纳新增的两条「交付自检」护栏。
+const LIMIT = 2700
 const over = LEVELS.filter((mode) => renderRuleset(mode).length > LIMIT)
 if (over.length > 0) {
   console.error(`  ✗ 常驻段超出预算：${over.join(', ')} 超过 ${LIMIT} 字符`)

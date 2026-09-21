@@ -45,10 +45,32 @@ test('renderRuleset：安全底线与 ponytail: 标记必须写明', () => {
   assert.ok(text.includes('ONE runnable check'), '必须要求非平凡逻辑留一个可运行的检查')
 })
 
+test('renderRuleset：交付自检两条护栏必须写明（0.5.0）', () => {
+  for (const mode of LEVELS) {
+    const text = renderRuleset(mode)
+    // ① 可见功能不以「代码路径存在」为完成 —— 对着 CSS 伪元素不渲染 / 色差过小的事故
+    assert.ok(
+      text.includes('verify the pixels, not the branch'),
+      `${mode} 缺「渲染可见性验证」护栏：代码路径存在不等于用户看得见`,
+    )
+    // ② 跨刷新存活的状态属于功能本身 —— 对着「失败被写成 0、角标一次就消失」的事故
+    assert.ok(
+      text.includes('never write a failed fetch back as zero'),
+      `${mode} 缺「失败不得回写为 0」护栏：角标会静默消失`,
+    )
+    // ③ 具名列表不是裸骨架 —— 对着「只留一个全部已读、不做已读/未读区分」的事故
+    assert.ok(
+      text.includes('bare skeleton'),
+      `${mode} 缺「具名列表含读态/计数/空错态」护栏`,
+    )
+  }
+})
+
 test('renderRuleset：常驻段有体量上限（它每个 step 都计费）', () => {
   for (const mode of LEVELS) {
     const size = renderRuleset(mode).length
-    assert.ok(size < 2200, `${mode} 的规则集 ${size} 字符，超出常驻预算`)
+    // 0.5.0 起从 2200 提到 2700：新增两条「交付自检」护栏约 410 字符，留出余量避免下次改动即贴顶。
+    assert.ok(size < 2700, `${mode} 的规则集 ${size} 字符，超出常驻预算`)
     assert.ok(size > 800, `${mode} 的规则集只有 ${size} 字符，规则可能被裁过头`)
   }
 })
